@@ -37,8 +37,9 @@
                         <muleVersion>4.4.0</muleVersion>
                         <connectedAppClientId>${connectedapp.client.id}</connectedAppClientId>
                         <connectedAppClientSecret>${connectedapp.client.secret}</connectedAppClientSecret>
-                        <username>${anypoint.username}</username>
-                        <password>${anypoint.password}</password>
+                        <connectedAppGrantType>client_credentials</connectedAppGrantType>
+<!--                         <username>${anypoint.username}</username>
+                        <password>${anypoint.password}</password> -->
                         <applicationName>sample-gitactions</applicationName>
                         <environment>Sandbox</environment>
                         <workerType>MICRO</workerType>

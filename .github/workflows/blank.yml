@@ -60,7 +60,7 @@ jobs:
       env:
         # USERNAME: ${{ secrets.anypoint_platform_username }}
         # PASSWORD: ${{ secrets.anypoint_platform_password }}
-        BUSID: ${{ secrets.BUSID}}
+        BUSGROUP: ${{ secrets.BUSGROUP}}
         CONNECTEDCLIENTID: ${{ secrets.connected_client_id}}
         CONNECTEDCLIENTSECRET: ${{ secrets.connected_client_secret}}
         # ANYPOINT_PLATFORM_CLIENT_ID: ${{ secrets.MULETALKS_ANYPOINT_PLATFORM_CLIENT_ID }}
@@ -71,7 +71,7 @@ jobs:
          -Dmule.artifact=$artifactName \
          # -Danypoint.username="$USERNAME" \
          # -Danypoint.password="$PASSWORD" \
-         -Denv.BUS_GROUP_ID="$BUSID" \
+         -Denv.BUS_GROUP="$BUSGROUP" \
          -Dconnectedapp.client.id="CONNECTEDCLIENTID" \
          -Dconnectedapp.client.secret="CONNECTEDCLIENTSECRET" \
          # -Danypoint.platform.muletalks.client_secret="$ANYPOINT_PLATFORM_CLIENT_SECRET" \

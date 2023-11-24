@@ -61,8 +61,8 @@ jobs:
         USERNAME: ${{ secrets.anypoint_platform_username }}
         PASSWORD: ${{ secrets.anypoint_platform_password }}
         BUSID: ${{ secrets.BUSID}}
-        CONNECTEDCLIENTID: ${{ secret.connected_client_id}}
-        CONNECTEDCLIENTSECRET: ${{ secret.connected_client_secret}}
+        CONNECTEDCLIENTID: ${{ secrets.connected_client_id}}
+        CONNECTEDCLIENTSECRET: ${{ secrets.connected_client_secret}}
       run: |
         artifactName=$(ls *.jar | head -1)
         mvn deploy -DmuleDeploy \

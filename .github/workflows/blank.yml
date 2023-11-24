@@ -74,5 +74,5 @@ jobs:
          -Denv.BUS_GROUP="$BUSGROUP" \
          -Dconnectedapp.client.id="CONNECTEDCLIENTID" \
          -Dconnectedapp.client.secret="CONNECTEDCLIENTSECRET" \
-         # -Danypoint.platform.muletalks.client_secret="$ANYPOINT_PLATFORM_CLIENT_SECRET" \
-         # -Danypoint.platform.muletalks.client_id="$ANYPOINT_PLATFORM_CLIENT_ID"
+         -Danypoint.platform.muletalks.client_secret="$ANYPOINT_PLATFORM_CLIENT_SECRET" \
+         -Danypoint.platform.muletalks.client_id="$ANYPOINT_PLATFORM_CLIENT_ID"

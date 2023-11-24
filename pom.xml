@@ -35,8 +35,8 @@
                     <cloudHubDeployment>
                         <uri>https://anypoint.mulesoft.com</uri>
                         <muleVersion>4.4.0</muleVersion>
-                        <connectedAppClientId>${connectedapp.client.id}</connectedAppClientId>
-                        <connectedAppClientSecret>${connectedapp.client.secret}</connectedAppClientSecret>
+<!--                         <connectedAppClientId>${connectedapp.client.id}</connectedAppClientId>
+                        <connectedAppClientSecret>${connectedapp.client.secret}</connectedAppClientSecret> -->
                         <username>${anypoint.username}</username>
                         <password>${anypoint.password}</password>
                         <applicationName>sample-gitactions</applicationName>

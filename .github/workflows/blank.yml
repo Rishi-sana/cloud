@@ -61,10 +61,14 @@ jobs:
         USERNAME: ${{ secrets.anypoint_platform_username }}
         PASSWORD: ${{ secrets.anypoint_platform_password }}
         BUSID: ${{ secrets.BUSID}}
+        CONNECTED_CLIENT_ID: ${{ secret.connected_client_id}}
+        CONNECTED_CLIENT_SECRET: ${{ secret.connected_client_secret}}
       run: |
         artifactName=$(ls *.jar | head -1)
         mvn deploy -DmuleDeploy \
          -Dmule.artifact=$artifactName \
          -Danypoint.username="$USERNAME" \
          -Danypoint.password="$PASSWORD" \
-         -Denv.BUS_GROUP_ID="$BUSID"
+         -Denv.BUS_GROUP_ID="$BUSID" \
+         -Dconnectedapp.client.id="CONNECTED_CLIENT_ID" \
+         -Dconnectedapp.client.secret="CONNECTED_CLIENT_SECRET"

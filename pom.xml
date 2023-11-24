@@ -43,6 +43,7 @@
                         <region>us-east-2</region>
                         <workers>1</workers>
                         <objectStoreV2>true</objectStoreV2>
+                        <businessGroupId>${env.BUS_GROUP_ID}</businessGroupId>
                     </cloudHubDeployment>
                 </configuration>
             </plugin>

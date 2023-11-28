@@ -1,98 +1,260 @@
-name: Build and Deploy to Sandbox
+name: Mulesoft Deployment - Feature to DEV
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-    
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout this repo
-      uses: actions/checkout@v3
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-maven-
-    - name: Set up JDK 1.8
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'zulu'
-        java-version: 8
-    - name: Test with Maven
-      env:
-        nexus_username: ${{ secrets.nexus_username }}
-        nexus_password: ${{ secrets.nexus_password }}
-        KEY: ${{ secrets.decryption_key }}
-      run: mvn test --settings .maven/settings.xml -Dsecure.key="$KEY"
-    - name: Upload MUnit reports
-      uses: actions/upload-artifact@v3
-      with:
-        name: munit-test-reports
-        path: target/site/munit/coverage/
+  workflow_dispatch:
+    inputs:
+      application:
+        type: string
+        required: true
+      featureBranch:
+        type: string
+        required: true
+      xref:
+        type: string
+        required: false
+      ciWorkerType:
+        type: choice
+        required: true
+        description: Size of the worker(s) Micro (0.1 vCores), Small (0.2 vCores), Medium (1 vCores), Large (2 vCores), xLarge (4 vCores)
+        options:
+          - Micro
+          - Small
+          - Medium
+          - Large
+          - xLarge
+      ciWorker:
+        type: choice
+        required: true
+        description: Number of workers
+        options:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
+          - 6
 
-  build:
-    needs: test
+permissions:
+  id-token: write
+  contents: read
+
+run-name: ${{ github.workflow }} - ${{ inputs.application }} -> feature to dev
+
+jobs:
+  verify-permissions:
+    name: Verify Permissions
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout this repo
-      uses: actions/checkout@v3
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-maven-
-    - name: Set up JDK 1.8
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'zulu'
-        java-version: 8
-    - name: Build with Maven
-      run: mvn -B package --file pom.xml -DskipMunitTests
-    - name: Stamp artifact file name with commit hash
-      run: |
-        artifactName1=$(ls target/*.jar | head -1)
-        commitHash=$(git rev-parse --short "$GITHUB_SHA")
-        artifactName2=$(ls target/*.jar | head -1 | sed "s/.jar/-$commitHash.jar/g")
-        mv $artifactName1 $artifactName2
-    - name: Upload artifact 
-      uses: actions/upload-artifact@v3
-      with:
-          name: artifacts
-          path: target/*.jar
-        
-  deploy:
-    needs: build
+      - name: Get team members
+        id: members
+        env:
+          GITHUB_TOKEN: ${{ secrets.ENIN_PAT }}
+        run: |
+          team_slug=my-team
+          members_url=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.github.com/orgs/husa-enin/teams/husa-enin-developers/members" | jq -r '.[].url')
+          members=$(echo $members_url | xargs -n1 curl -s -H "Authorization: Bearer $GITHUB_TOKEN" | jq -r '.login')
+          members_trimmed=$(echo $members | tr -d '\n')
+          echo "::set-output name=members::$members_trimmed"
+      - name: Print team members
+        run: |
+          echo "Team members: ${{ steps.members.outputs.members }}"
+      - name: Check permissions
+						   
+		  
+													 
+													 
+										  
+        run: |
+          if ! echo "${{ steps.members.outputs.members }}" | grep -q "${{ github.actor }}"; then
+            echo "User ${{ github.actor }} is not authorized to deploy"
+            exit 1
+          fi
+          
+  ParentPomChecks:
+    name: Verify ParentPom
+			   
     runs-on: ubuntu-latest
-    steps:    
-    - name: Checkout this repo
-      uses: actions/checkout@v3
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-maven-
-    - uses: actions/download-artifact@v3
-      with:
-        name: artifacts
-    - name: Deploy to Sandbox
-      env:
-        USERNAME: ${{ secrets.anypoint_platform_username }}
-        PASSWORD: ${{ secrets.anypoint_platform_password }}
-        KEY: ${{ secrets.decryption_key }}
-      run: |
-        artifactName=$(ls *.jar | head -1)
-        mvn deploy -DskipMunitTests -DmuleDeploy \
-         -Dmule.artifact=$artifactName \
-         -Danypoint.username="$USERNAME" \
-         -Danypoint.password="$PASSWORD" \
-         -Ddecryption.key="$KEY"
+    steps:
+      - name: Checkout Remote Repository
+        uses: actions/checkout@v2
+        with:
+							
+		   
+          repository: husa-enin/${{ inputs.application }}
+          ref: ${{ inputs.featureBranch }}
+          token: ${{ secrets.ENIN_PAT }}
+          path: 'verifyparentpom'
+          
+      - name: Check ParentPom Section Reference
+        run: |
+          if grep -q '<parent>' 'verifyparentpom/pom.xml';
+          then
+          echo "Parent Pom Is Refered In Mule Application"
+          exit 0
+          else
+          echo "Parent Pom Is Not Refered In Mule Application"
+          exit 1
+          fi
+          
+      - name: validate connectors versions reference
+        run: |
+          grep -o -P '(?<=version).*(?=version)' 'verifyparentpom/pom.xml' > versions.txt
+          cat 'versions.txt'
+          for word in $(cat versions.txt); 
+          do 
+          if [[ $word == *".version"* || $word == *"2.0.0"* || $word == *"SNAPSHOT"* || $word == *"1."* ]]; then
+          echo $word;
+          echo "This Is A Valid Version Reference"; 
+          else
+          echo $word;
+          echo "This Is Not A Valid Version Reference"
+          exit 1;
+          break
+          fi
+          done
+          
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [ verify-permissions, ParentPomChecks]
+    env:
+      XREFKEY: ${{ inputs.xref }}
+      ENV: dev
+      JAVA_VERSION: 8
+      MAVEN_VERSION: '3.6.2'
+      JAVA_DISTRIBUTION: 'temurin'
+      CACHE_PATH: '~/.m2/repository'
+    
+    steps:
+      
+      - name: Checkout mulesoft-deployment-actions
+        uses: actions/checkout@v2
+                    
+      - name: Set Executable Permissions
+        run: chmod +x ./.github/scripts/verifyXrefExists.sh
+        
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::468791509673:role/gitaction-oidc-auth-role
+          role-session-name: testaccess
+          aws-region: us-east-1
+
+      - name: Verify xRef Exists
+        run: ./.github/scripts/verifyXrefExists.sh
+        shell: bash
+        
+      - name: Checkout KeyStore & TrustStor From Central Location
+        uses: actions/checkout@v2
+        with:
+          repository: 'husa-enin/Enterprise-Integration-Platform-Keystore'
+          ref: 'main'
+          token: ${{ secrets.ENIN_PAT }}
+          path: './keystore'
+          
+      - name: Push Key Store File To Repo
+        uses: dmnemec/copy_file_to_another_repo_action@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.ENIN_PAT }}
+        with:
+          source_file: 'keystore/keystore.jks'
+          destination_repo: husa-enin/${{ inputs.application }}
+          destination_branch: ${{ inputs.featureBranch }}
+          destination_folder: 'src/main/resources/ssl'
+          user_email: '${{github.actor.id}}+${{github.actor}}@users.noreply.github.com'
+          user_name: ${{github.actor}}
+          commit_message: 'Adding Keystore' 
+          
+      - name: Push Trust Store File To Repo
+        uses: dmnemec/copy_file_to_another_repo_action@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.ENIN_PAT }}
+        with:
+          source_file: 'keystore/truststore.jks'
+          destination_repo: husa-enin/${{ inputs.application }}
+          destination_branch: ${{ inputs.featureBranch }}
+          destination_folder: 'src/main/resources/ssl'
+          user_email: '${{github.actor.id}}+${{github.actor}}@users.noreply.github.com'
+          user_name: ${{github.actor}}
+          commit_message: 'Adding Truststore' 
+          
+
+      - name: Checkout Parent Pom Repository
+        uses: actions/checkout@v2
+        with:
+          repository: 'husa-enin/eip-gea-parentpom'
+          ref: 'v1'
+          token: ${{ secrets.ENIN_PAT }}
+          path: 'eip-gea-parentpom'
+          
+      - name: Maven Install Parent Pom
+        working-directory: 'eip-gea-parentpom'
+        run: |
+          mvn -q clean install
+
+      - name: Checkout Remote Repository
+        uses: actions/checkout@v2
+        with:
+          repository: husa-enin/${{ inputs.application }}
+          ref: ${{ inputs.featureBranch }}
+          token: ${{ secrets.ENIN_PAT }}
+          path: ${{ inputs.application }}
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          overwrite-settings: false
+          java-version: '${{ env.JAVA_VERSION }}'
+          distribution: '${{ env.JAVA_DISTRIBUTION }}'
+
+      - name: Setup Caching
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.CACHE_PATH }}
+          key: ${{ runner.os }}-jdk${{ env.JAVA_VERSION }}-${{ env.JAVA_DISTRIBUTION }}-maven${{ env.MAVEN_VERSION }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-jdk${{ env.JAVA_VERSION }}-${{ env.JAVA_DISTRIBUTION }}-maven${{ env.MAVEN_VERSION }}-
+
+      - name: Setup Maven
+        uses: stCarolas/setup-maven@v4.5
+        if: ${{ env.MAVEN_VERSION }} != steps.current-maven.outputs.version
+        with:
+          maven-version: '${{ env.MAVEN_VERSION }}'
+
+      - name: Setup Maven Environment
+        uses: s4u/maven-settings-action@v2.8.0
+          
+      - name: Maven Config
+        working-directory: ${{ inputs.application }}
+        run: |
+          mvn -q -U --batch-mode -s ./.github/maven/MyGlobalSettings.xml clean install -Dcl.org=${{ secrets.ORGANIZATION_ID }}
+            
+      - name: Build and Package Application
+        working-directory: ${{ inputs.application }}
+        run: |
+          mvn -B -U -q clean package -DskipTests
+
+      - name: Unit Testing & Code Coverage Analysis
+        working-directory: ${{ inputs.application }}
+        run: |
+          mvn -B -q test -Dmule.env=dev
+
+      - name: Deploy API to Anypoint Platform
+        working-directory: ${{ inputs.application }}
+        run: |
+          mvn -B deploy \
+          -DskipTests \
+          -Dmule.env=dev \
+          -Dsecure.key=${{ secrets.KEYAPP }} \
+          -Dcl.org='GE Appliances' \
+          -Dmule.jj.version=4.4.0 \
+          -Dcl.connectedapp.client.id=${{secrets.MFA_DEPLOYMENT_CLIENT_ID}} \
+          -Dcl.connectedapp.client.secret=${{secrets.MFA_DEPLOYMENT_CLIENT_SECRET}} \
+          -Dcl.connectedapp.grant.type='client_credentials' \
+          -Dcl.env.name=dev \
+          -Dcl.app.name=${{ inputs.application }}-dev \
+          -Dcl.region=us-east-1 \
+          -Dcl.ClientID=${{ secrets.ANYPOINT_CLIENT_ID }} \
+          -Dcl.ClientSecret=${{ secrets.ANYPOINT_CLIENT_SECRET }} \
+          -Dcl.workers=${{ inputs.ciWorker }} \
+          -Dcl.worker.type=${{ inputs.ciWorkerType }}
